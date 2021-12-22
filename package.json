@@ -1,0 +1,25 @@
+{
+  "name": "cloudstorage-test",
+  "version": "1.0.0",
+  "description": "test cloud uploads",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "test"
+  ],
+  "author": "Lucia de Espona",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.44.0",
+    "@aws-sdk/s3-presigned-post": "^3.44.0",
+    "@aws-sdk/s3-request-presigner": "^3.44.0",
+    "@aws-sdk/signature-v4-crt": "^3.41.0",
+    "dotenv": "^10.0.0",
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.6.6",
+    "uniqid": "^5.4.0",
+    "xmlhttprequest": "^1.8.0"
+  }
+}
