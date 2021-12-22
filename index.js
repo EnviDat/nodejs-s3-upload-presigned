@@ -1,6 +1,5 @@
 
-const { S3Client, ListObjectsCommand, CreateMultipartUploadCommand, UploadPartCommand } = require("@aws-sdk/client-s3")
-const { createPresignedPost } = require("@aws-sdk/s3-presigned-post")
+const { S3Client, ListObjectsCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } = require("@aws-sdk/client-s3")
 const { getSignedUrl } = require( "@aws-sdk/s3-request-presigner")
 const uniqid = require("uniqid")
 var FormData = require('form-data');
@@ -23,9 +22,7 @@ async function testS3() {
 
     // Upload data details
     const file_path = "./data/test_2mb.txt"
-    let fileStream = fs.createReadStream(file_path)
-    const stats = fs.statSync(fileStream.path)
-    const file_size = stats.size
+    let fileBuffer = fs.readFileSync(file_path)
     const target_file_name = `test_${uniqid()}.txt`
 
     // initiate the multipart
@@ -40,36 +37,25 @@ async function testS3() {
     const Fields = {};
     const Conditions = [] // TODO Conditions: [["eq", "$Content-Type", type]], file size  ["content-length-range", 100, 10000000] // 100Byte - 10MB
     const Expires =  600 // Seconds before the presigned post expires. 3600 by default.
+    //const ContentLength = Buffer.byteLength(fileBuffer)
 
     // single part test
     const PartNumber = 1
     const uploadPartCommand = new UploadPartCommand({ Bucket, Key, Conditions, Fields, Expires, UploadID, PartNumber});
-    const presignedPostData = await getSignedUrl(s3Client, uploadPartCommand, { expiresIn: 3600 });
+    const presignedPostURL = await getSignedUrl(s3Client, uploadPartCommand, { expiresIn: 3600 });
     
-    //const presignedPostData = await createPresignedPost(s3Client, { Bucket, Key, Conditions, Fields, Expires});
-
-    console.log(" * Got: ", presignedPostData)
-    console.log(" * Got url for upload: ", presignedPostData.url)
-    console.log(presignedPostData.fields)
-
-    // do the upload using the presigned url data
-    const formData = new FormData();
-    Object.keys(presignedPostData.fields).forEach(key => {
-      formData.append(key, presignedPostData.fields[key]);
-    })
-
-    // Actual file has to be appended last.
-    formData.append("file", fileStream, {
-        knownLength: file_size,
-      })
-
-   const responseUpload = await fetch(presignedPostData.url, {
-        method: "POST",
+    console.log(" * Got: ", presignedPostURL)
+ 
+   const responseUpload = await fetch(presignedPostURL, {
+        method: "PUT",
         //headers: requestData.headers,
-        body: formData,
+        body: fileBuffer,
       })
 
-    console.log(responseUpload)
+    console.log("PUT response:", responseUpload)
+
+    //let completeUploadCommand = new CompleteMultipartUploadCommand()
+    //CompleteMultipartUploadRequest
 }
 
 testS3();

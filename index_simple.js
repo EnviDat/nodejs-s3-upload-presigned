@@ -57,7 +57,8 @@ async function testS3() {
         body: formData,
       })
 
-    console.log(responseUpload)
-}
+      console.log(responseUpload)
+      console.log(await responseUpload.text())
+    }
 
 testS3();
