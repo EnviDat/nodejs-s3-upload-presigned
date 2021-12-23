@@ -1,5 +1,5 @@
 
-const { S3Client, ListObjectsCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } = require("@aws-sdk/client-s3")
+const { S3Client, ListObjectsCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand} = require("@aws-sdk/client-s3")
 const { getSignedUrl } = require( "@aws-sdk/s3-request-presigner")
 const uniqid = require("uniqid")
 var FormData = require('form-data');
@@ -21,23 +21,23 @@ async function testS3() {
     console.log(" \t ... ")
 
     // Upload data details
-    const file_path = "./data/test_2mb.txt"
+    const file_path = "./data/test_tiny.txt"
     let fileBuffer = fs.readFileSync(file_path)
     const target_file_name = `test_${uniqid()}.txt`
+    const Bucket = process.env.AWS_CONTAINER_NAME;
+    const Key = target_file_name;
 
     // initiate the multipart
-    const command = new CreateMultipartUploadCommand({Bucket: process.env.AWS_CONTAINER_NAME, Key: target_file_name})
+    const command = new CreateMultipartUploadCommand({Bucket, Key})
     const responseCreateMultipart = await s3Client.send(command)
     const UploadID = responseCreateMultipart.UploadId
     console.log("uploadID = ", UploadID)
 
     //request the presigned url
-    const Bucket = process.env.AWS_CONTAINER_NAME;
-    const Key = target_file_name;
     const Fields = {};
     const Conditions = [] // TODO Conditions: [["eq", "$Content-Type", type]], file size  ["content-length-range", 100, 10000000] // 100Byte - 10MB
     const Expires =  600 // Seconds before the presigned post expires. 3600 by default.
-    //const ContentLength = Buffer.byteLength(fileBuffer)
+    const ContentLength = Buffer.byteLength(fileBuffer)
 
     // single part test
     const PartNumber = 1
@@ -45,17 +45,34 @@ async function testS3() {
     const presignedPostURL = await getSignedUrl(s3Client, uploadPartCommand, { expiresIn: 3600 });
     
     console.log(" * Got: ", presignedPostURL)
+    console.log(" * Buffer: ", fileBuffer)
  
+    // const myHeaders = new fetch.Headers();
+    // myHeaders.append('Content-Type', 'text/plain');
+    // myHeaders.append('Content-Length', ContentLength.toString());
+
    const responseUpload = await fetch(presignedPostURL, {
         method: "PUT",
-        //headers: requestData.headers,
-        body: fileBuffer,
+        headers: {'Content-Type': 'application/octet-stream', 'Content-Length': ContentLength.toString(), 'content-length': ContentLength.toString()},
+        body: fileBuffer
+        //body: { "file": fileBuffer}
       })
 
-    console.log("PUT response:", responseUpload)
+      console.log("PUT response:", responseUpload)
+      console.log("PUT response headers:", responseUpload.headers)
 
-    //let completeUploadCommand = new CompleteMultipartUploadCommand()
-    //CompleteMultipartUploadRequest
+    let etag = responseUpload.headers.get('etag')
+    console.log("PUT response Etag:", etag)
+
+    let parts = [{
+      ETag: etag,
+      PartNumber: 1
+    }]
+
+    let completeUploadCommand = new CompleteMultipartUploadCommand({Bucket, Key, MultipartUpload: { Parts: parts }, UploadID})
+    console.log(completeUploadCommand)
+    const completeUploadResponse = await s3Client.send(completeUploadCommand)
+    console.log(" * Got: ", completeUploadResponse)
 }
 
 testS3();
